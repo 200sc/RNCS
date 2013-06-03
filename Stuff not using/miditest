@@ -1,0 +1,20 @@
+all__ = []
+
+import pygame
+import time
+
+pygame.midi.init()
+
+print pygame.midi.get_count()
+print pygame.midi.get_default_output_id()
+
+output = pygame.midi.Output(0)
+
+output.set_instrument(0)
+output.note_on(64)
+time.sleep(1)
+output.note_off(64)
+
+x = raw_input("::")
+
+pygame.midi.quit()
