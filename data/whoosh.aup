@@ -1,0 +1,29 @@
+<?xml version="1.0" standalone="no" ?>
+<!DOCTYPE project PUBLIC "-//audacityproject-1.3.0//DTD//EN" "http://audacity.sourceforge.net/xml/audacityproject-1.3.0.dtd" >
+<project xmlns="http://audacity.sourceforge.net/xml/" projname="whoosh_data" version="1.3.0" audacityversion="2.0.3" sel0="0.1537323129" sel1="0.3861183673" vpos="0" h="0.0000000000" zoom="279.7069736467" rate="44100.0">
+	<tags>
+		<tag name="LICENSE" value="Creative Commons Sampling Plus 1.0 License.  See http://creativecommons.org/licenses/sampling+/1.0/"/>
+		<tag name="ARTIST" value="Stephen M. Cameron"/>
+		<tag name="COPYRIGHT" value="(c) 2008, Stephen M. Cameron"/>
+	</tags>
+	<wavetrack name="whoosh" channel="0" linked="1" mute="0" solo="0" height="150" minimized="0" isSelected="0" rate="44100" gain="1.0" pan="0.0">
+		<waveclip offset="0.00000000">
+			<sequence maxsamples="524288" sampleformat="131073" numsamples="94599">
+				<waveblock start="0">
+					<simpleblockfile filename="e0000144.au" len="94599" min="-0.570801" max="0.543335" rms="0.029284"/>
+				</waveblock>
+			</sequence>
+			<envelope numpoints="0"/>
+		</waveclip>
+	</wavetrack>
+	<wavetrack name="whoosh" channel="1" linked="0" mute="0" solo="0" height="150" minimized="0" isSelected="0" rate="44100" gain="1.0" pan="0.0">
+		<waveclip offset="0.00000000">
+			<sequence maxsamples="524288" sampleformat="131073" numsamples="94599">
+				<waveblock start="0">
+					<simpleblockfile filename="e00007e5.au" len="94599" min="-0.587402" max="0.549835" rms="0.029035"/>
+				</waveblock>
+			</sequence>
+			<envelope numpoints="0"/>
+		</waveclip>
+	</wavetrack>
+</project>

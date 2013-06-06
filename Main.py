@@ -11,7 +11,6 @@ MISSILELIST = []
 TERRAINLIST = []
 MOVEX = 0
 MOVEY = 0
-SOUNDOUTPUT = None
 
 
 class terrain():
@@ -59,7 +58,7 @@ class boat():
    # is before a word, it represents 'current', else
    # a 'c' after a word represents 'count'.
 
-   def __init__(self,type,alliance,(x,y),window,(mapwidth,mapheight),isplayer = False):
+   def __init__(self,type,alliance,(x,y),window,(mapwidth,mapheight),isplayer = False, inactive = False):
 
       if type == "trireme":
          self.rowc = 3
@@ -146,7 +145,7 @@ class boat():
       self.rowname = ""
       self.sailname = self.saildownimage
       self.load_image()
-      self.drawnimage = pygame.image.load("data/"+self.saildownimage+".gif")
+      self.drawnimage = pygame.image.load("data/"+self.alliance+self.saildownimage+".gif")
       self.rect = self.baseimage.get_rect()
       self.imageangle = self.angle
       self.max_speed = None
@@ -158,7 +157,7 @@ class boat():
       self.destroyed = False
       self.target = None
       self.targetAIdistance = 300
-      self.inactive = False
+      self.inactive = inactive
       self.AInum = random.randint(0,1)
 
       # Initiates dictionary of variables which are rendered as text objects
@@ -210,11 +209,7 @@ class boat():
          shift = False
 
       # Checks to ensure there is a current weapon
-      if self.cweapon == None:
-         None
-         # Currently unused
-         # new_sound = error_sound(nope)
-      else:
+      if self.cweapon != None:
 
          # Sets appropriate kind of weapon as internal variable
          # 'weapon'
@@ -244,7 +239,6 @@ class boat():
             weapon -= ammo_fired
 
          elif weapon == 0:
-            #new_sound = error_sound(nope)
             return None
 
          elif weapon <= self.cfighters and self.cweapon != "rocks":
@@ -326,12 +320,6 @@ class boat():
 
       if weapon == "obstacle":
          self.turnaround()
-
-
-      # Destroys boat if boat's hull at 0 or less  
-
-      if self.chull <= 0:
-         self.destroy()
 
    # Removes and disposes of destroyed boats.
    # Will eventually use self.sinkimage
@@ -548,7 +536,7 @@ class boat():
    # into not having a series of if statements here.
 
    def load_image(self):
-      self.baseimage = pygame.image.load("data/"+self.sailname+self.rowname+".gif")
+      self.baseimage = pygame.image.load("data/"+self.alliance+self.sailname+self.rowname+".gif")
       
    def update(self):
 
@@ -582,12 +570,12 @@ class boat():
 
       if self.chull < self.hull:
          self.waterdamage += (self.hull - self.chull) / 500
-         if self.waterdamage > 0:
-            self.waterdamage -= self.cbailers / float(100)
       if self.waterdamage > self.hull:
          self.destroy()
       if self.waterdamage < 0:
          self.waterdamage = 0
+      elif self.waterdamage > 0:
+         self.waterdamage -= self.cbailers / float(100)
 
       # Determine colissions with other boats-- no friendly colission currently allowed.
 
@@ -643,6 +631,10 @@ class boat():
       self.window.blit(self.drawnimage, (self.x,self.y))
       self.set_text()
 
+      # Destroys boat if boat's hull at 0 or less  
+      if self.chull <= 0:
+         self.destroy()
+
       if not self.isplayer:
          if self.target == None:
             self.gettarget()
@@ -652,8 +644,20 @@ class boat():
 
    def update_status_UI(self):
       top = self.y+self.drawnimage.get_height()
+
       # Outline
-      pygame.draw.rect(self.window,(0,0,0),pygame.Rect(self.x+7,top,34,10))
+      if self.csail and self.chull and (self.waterdamage or self.firedamage):
+         width, height = 34, 18
+      elif self.chull and self.csail:
+         width, height = 34, 10
+      elif self.chull and self.waterdamage and not self.csail and not self.firedamage:
+         width, height = 18, 18
+      elif self.chull and not self.csail and not self.waterdamage and not self.firedamage:
+         width, height = 18, 10
+      else:
+         width, height = 34, 18
+
+      pygame.draw.rect(self.window,(0,0,0),pygame.Rect(self.x+7,top,width,height))
       # Hull
       pygame.draw.rect(self.window,(0,255,0),pygame.Rect(self.x+8,top,((self.chull)/self.hull)*16,8))
       # Sail
@@ -756,6 +760,7 @@ class boat():
          self.people_manage('sailors','up')
 
    def AI(self):
+      out_of_ammo = False
       if self.AInum == 0:
          turndirection = "counterclockwise"
          flame = random.randint(0,5)
@@ -795,11 +800,13 @@ class boat():
             elif self.target.speed < 1 and self.cjavelin > 1 and self.cweapon != 'javelin':
                self.setweapon('javelin')
                return
-            elif self.target.speed < .5 and self.catapult == True and self.crocks > 1 and self.cweapon != 'rocks':
+            elif self.target.speed < 1 and self.catapult == True and self.crocks > 1 and self.cweapon != 'rocks':
                self.setweapon('rocks')
                return
+            if self.javelin == 0 and self.rocks == 0 and self.arrows == 0:
+               out_of_ammo = True
             # Pythagorean theorem distance
-            if math.sqrt(((self.target.nonrelx - self.nonrelx)**2) +((self.target.nonrely - self.nonrely)**2)) < self.targetAIdistance:  
+            if math.sqrt(((self.target.nonrelx - self.nonrelx)**2) +((self.target.nonrely - self.nonrely)**2)) < self.targetAIdistance and not out_of_ammo:  
                   cycling = True
                   self.targetAIdistance = 500
                   if self.nonrelx > 310+self.target.nonrelx:
@@ -996,7 +1003,7 @@ class interface():
       if size == 1 or size == 2:
          interfacelist[self]=[[x,x+60],[y,y+(24*size)]]
       else:
-         interfacelist[self]=[[x,x+size[0]],[y,[y+size[1]]]]
+         interfacelist[self]=[[x,x+size[0]],[y,y+size[1]]]
 
       # Sets and loads proper image file as defined by interface's function
       self.image = function + ".gif"
@@ -1087,6 +1094,7 @@ class event_handler():
            if item[0].functional:
                if item[1][0][0] <= x <= item[1][0][1]:
                    if item[1][1][0] <= y <= item[1][1][1]:
+                       print item[0].function
                        return item[0].function, True
        return None, False
 
@@ -1112,7 +1120,7 @@ class naval_event_handler(event_handler):
 
    def __init__(self,screen,fpsClock,boattype,scenario):
       #Initiate various states for function
-
+      self.gameover = False
       running = True
       a_font = pygame.font.Font(None, 16)
       interfaces = self.init_naval_interface()
@@ -1120,10 +1128,11 @@ class naval_event_handler(event_handler):
       highlightlist = {}
       shift = False
       paused = False
+      tutorial = False
       
       # Depending on scenario, create different objects and a different map size.
 
-      if scenario == "Test":
+      if scenario == "1v1":
          aboat = boat(boattype, "Roman", (328,192), screen,(1000,1000), True)
          enemy_boat = boat("trireme","Carthaginian", (420,420), screen,(1000,1000))
 
@@ -1132,7 +1141,7 @@ class naval_event_handler(event_handler):
 
          mini = minimap(screen,(1000,1000),(239,431),(240,144))
 
-      if scenario == "Test_Arena":
+      elif scenario == "3v3":
          aboat = boat(boattype, "Roman", (328,192), screen,(1000,1000), True)
 
          ally_boat_1 = boat("bireme", "Roman", (-400,100), screen,(1000,1000))
@@ -1141,6 +1150,34 @@ class naval_event_handler(event_handler):
          enemy_boat_1 = boat("trireme", "Carthaginian", (720,20), screen,(1000,1000))
          enemy_boat_2 = boat("bireme", "Carthaginian", (720,100), screen,(1000,1000))
          enemy_boat_3 = boat("quadrireme", "Carthaginian", (720,180), screen,(1000,1000))
+
+         mini = minimap(screen,(1000,1000),(239,431),(240,144))
+
+      elif scenario == "2v6":
+         aboat = boat(boattype, "Roman", (328,192), screen,(1000,1000), True)
+         ally_boat_1 = boat(boattype, "Roman", (428,192), screen, (1000,1000))
+         enemy_boat_1 = boat("trireme", "Carthaginian", (-400,20), screen,(1000,1000))
+         enemy_boat_2 = boat("bireme", "Carthaginian", (-400,100), screen,(1000,1000))
+         enemy_boat_3 = boat("quadrireme", "Carthaginian", (-400,180), screen,(1000,1000))
+         enemy_boat_4 = boat("trireme", "Carthaginian", (-300,20), screen,(1000,1000))
+         enemy_boat_5 = boat("quinquereme", "Carthaginian", (-300,100), screen,(1000,1000))
+         enemy_boat_6 = boat("quadrireme", "Carthaginian", (-300,180), screen,(1000,1000))
+
+         mini = minimap(screen,(1000,1000),(239,431),(240,144))
+
+      elif scenario == "Tutorial":
+         aboat = boat(boattype, "Roman", (328,192), screen,(1000,1000), True)
+         enemy_boat = boat("trireme","Carthaginian", (420,420), screen,(1000,1000), inactive = True)
+
+         rock1 = terrain('rock',(250,250),screen)
+         rock2 = terrain('rock',(120,120),screen)
+
+         tutorial = True
+
+         print "This is the current tutorial! In order to tutorialize, you will see messages over here",
+         print "as you try to do things. To begin the game, your sail is broken. To fix it, you can see",
+         print "a button in the bottom right with a sail and a red patch on it. Either click that button",
+         print "or to continue the tutorial, press the / or ? key."
 
          mini = minimap(screen,(1000,1000),(239,431),(240,144))
 
@@ -1195,7 +1232,7 @@ class naval_event_handler(event_handler):
 
                # Determine what interface to run on keyboard input
 
-               elif event.type == pygame.KEYUP:
+               elif event.type == pygame.KEYUP and not tutorial:
                   if event.key == 117:
                      if shift:
                         aboat.row_change('up','total')
@@ -1242,6 +1279,153 @@ class naval_event_handler(event_handler):
                   # If the player hits space, pause the game.
                   elif event.key == K_SPACE:
                      paused = True
+               elif event.type == pygame.KEYUP and tutorial:
+                  if event.key == 117:
+                     print
+                     print "This button will increase the number of rows of oars you have out by one."
+                     print "If you hold shift while pressing this button, you will put all of your oars out.",
+                     print "If you look on the left you can see a few guys holding oars-- they represent the number",
+                     print "of people you have currently rowing. If you don't have at least 15 people rowing for each row of oars,",
+                     print "your maximum number of oars will drop accordingly. The default maximum is represented by what boat you picked--",
+                     print "Bireme - 2, Trireme - 3, Quadrireme - 4, Quinquereme - 5."
+                     print "Oars are less useful than sails, as they don't intercept arrows and they provide less momentum in general."
+                     if shift:
+                        aboat.row_change('up','total')
+                     else:
+                        aboat.row_change('up')
+                  elif event.key == 105:
+                     print
+                     print "This button will turn your boat 15 degrees counterclockwise."
+                     print "If you hold shift while pressing this button, you will turn 30 degrees."
+                     if shift:
+                        aboat.turn('counterclockwise',30)
+                     else:
+                        aboat.turn('counterclockwise')
+                  elif event.key == 111:
+                     print
+                     print "This button will turn your boat 15 degrees clockwise."
+                     print "If you hold shift while pressing this button, you will turn 30 degrees."
+                     if shift:
+                        aboat.turn('clockwise',30)
+                     else:
+                        aboat.turn('clockwise')
+                  elif event.key == 112:
+                     print
+                     print "This button will increase the number of sails you have out by one."
+                     print "If you hold shift while pressing this button, you will put all of your sails out.",
+                     print "Shift-button actions will only work when using the keyboard interface, however.",
+                     print "The number of sails that you can have out is directly related to how many people you have manning the sails.",
+                     print "In the third column, first row of the left interface, people pulling ropes to a sail represent",
+                     print "the number of people you have manning sails currently.",
+                     print "You need at least 10 people manning each sail that you have. If you have any less, your maximum",
+                     print "number of sails that you can put out will be reduced."
+                     print "You can control how many people are doing a job with the up and down arrows to the right of any particular person,",
+                     print "but note that at default, you will have no people idling to give to any job, and will need to decrease a job before",
+                     print "increasing another."
+                     print
+                     print "For information about all of the people on the left, press B for bailers, D for dousers, F for fixers,",
+                     print "K for fighters, and U for rowers."
+                     print 
+                     print "Now that you are moving, if you want to not be moving, hit SPACE."
+                     print
+                     print "To see where you are, refer to the white square on the minimap at the center of the bottom of the screen."
+                     if shift:
+                        aboat.sail_change('up','total')
+                     else:
+                        aboat.sail_change('up')
+                  elif event.key == 106:
+                     print
+                     print "This button will lower the number of rows of oars you have out by one."
+                     print "To pull in all of your oars, hold shift while pressing the key for this button."
+                     print "For more on oars, press the U key."
+                     if shift:
+                        aboat.row_change('down','total')
+                     else:
+                        aboat.row_change('down')
+                  elif event.key == 107:
+                     print
+                     print "This button fires out of the port (left) side of your ship."
+                     print "The number of missiles that you fire is directly related to how many people you have assigned to be fighting.",
+                     print "As you can see on the left, in the third column from the left and the second row down, there are people holding javelin.",
+                     print "The number they have is representative of how many missiles you will fire when you hit the key to shoot.",
+                     print "You can control how many people are firing with the up and down arrows to the right of any particular person,",
+                     print "but note that at default, you will have no people idling to give to any job, and will need to decrease a job before",
+                     print "increasing another."
+                     aboat.fire('left',shift)
+                  elif event.key == 108:
+                     print
+                     print "This button fires out of the starboard (right) side of your ship."
+                     print "For more on firing, hit K."
+                     aboat.fire('right',shift)
+                  elif event.key == 59:
+                     print
+                     print "This button will lower the number of sails you have out by one."
+                     print "To drop all of your sails, hold shift while pressing the key for this button."
+                     print "For more on sails, press the P key."
+                     if shift:
+                        aboat.sail_change('down',"total")
+                     else:
+                        aboat.sail_change('down')
+                  elif event.key == 109:
+                     print
+                     print "This button sets your active weapon to be arrows.",
+                     print "You have many arrows, and they are your primary weapon. They target your enemy's sails before",
+                     print "hitting their hull, however, but in this sense they can also immobilize your opponent.",
+                     print "If you hold shift while pressing the fire key and you have arrows equipped, you will shoot",
+                     print "flaming arrows, which will actively damage your opponent's ship until they douse the flames."
+                     print "For information on firing, hit K."
+                     aboat.setweapon('arrows')
+                  elif event.key == 44:
+                     print
+                     print "This button sets your active weapon to be javelin.",
+                     print "You have far less javelin than you do arrows, but javelin do thrice as much damage as arrows",
+                     print "and they directly target the hull of the ship you are attacking. Javelin move slower than arrows."
+                     print "For information on firing, hit K."
+                     aboat.setweapon('javelin')
+                  elif event.key == ord("."):
+                     print 
+                     print "This button sets your active weapon to be boulders shot from catapults. Smaller boats like triremes",
+                     print "cannot support catapults, and so have no boulders. Boulders are incredibly powerful",
+                     print ", but they are also very slow. For information on firing, hit K."
+                     aboat.setweapon('rocks')
+                  elif event.key == ord("/"):
+                     print 
+                     print "This button will start fixing your sails."
+                     print "As you can see, if you sails were broken, your white bar will now be filling up under your boat.",
+                     print "This bar represents the condition of your sails. If it depletes fully,",
+                     print "You will need to fix your sails if you want to use them. While fixing your sail,",
+                     print "you cannot put up your sail or put out any oars. To stop fixing your sail prematurely, hit the fixsail button again."
+                     print
+                     print "Press the key of any other button as indicated by the lower-right interface in order to get a message on what it does",
+                     print "You might want to start by hitting P."
+                     aboat.fixsail()
+                  elif event.key == ord("B"):
+                     print
+                     print "The bailers are the guys throwing water out of a filling-with-water boat."
+                     print "If you start taking hull damage, water will start leaking into your boat, and these guys will remove that water.",
+                     print "The amount of water in your boat is both represented by a blue bar underneath your hull bar and by the lower number",
+                     print "on the bailers' picture. If it reaches your hull number, or if the blue bar reaches all the way to where your max hull would be",
+                     print ", then you will sink from taking on too much water."
+                  elif event.key == ord("D"):
+                     print
+                     print "The dousers are the guys throwing water onto a flaming sail.",
+                     print "If you are hit by flaming arrows, you will start taking ongoing fire damage until someone douses the fire.",
+                     print "Your current fire damage is represented both by a red bar that appears under your sail bar and by the lower number",
+                     print "on the dousers' picture. If you have fire damage undoused, you will have a hard time fixing your sail!"
+                  elif event.key == ord("F"):
+                     print
+                     print "The fixers are the guys hammering a ship with holes in it.",
+                     print "If you take hull damage, these guys will immediately start working on patching those holes.",
+                     print "They work slowly, but they are also necessary if you want to stop taking on water."
+
+                  # If the player hits space, pause the game.
+                  elif event.key == K_SPACE:
+                     print
+                     print "This button pauses the game! To unpause, hit space again."
+                     print "The only thing you can do while paused is change how many people are on any particular job,",
+                     print "although they won't move jobs until you unpause."
+                     paused = True
+
                    
             #Draw sea
             screen.fill(bgcolor)
@@ -1272,9 +1456,9 @@ class naval_event_handler(event_handler):
 
             # Draw victory text if one side is out of boats
 
-            if len(ROMANBOATLIST) == 0:
+            if len(ROMANBOATLIST) == 0 and self.gameover == False:
                self.end_game('Roman',interfaces)
-            elif len(CARTHAGINIANBOATLIST) == 0:
+            elif len(CARTHAGINIANBOATLIST) == 0 and self.gameover == False:
                self.end_game('Carthaginian',interfaces)
 
             # Draw text interfaces. Currently demands player boat
@@ -1365,6 +1549,7 @@ class naval_event_handler(event_handler):
          window.blit(image,item[1][1])      
 
    def end_game(self,defeated,interfaces):
+      self.gameover = True
       if defeated == "Carthaginian":
          vic_text = interface((210,41),"romanvictory",interfaces,(300,150),functional = False)
       else:
@@ -1383,18 +1568,24 @@ class menu_event_handler(event_handler):
    # The menu event handler (expectedly) handles events when the MODE = "Menu"
 
    def __init__(self,screen,fpsClock):
+      self.font = pygame.font.Font(None, 24)
       self.running = True
       self.menuplace = 1
       self.boattype = "quinquereme"
-      self.scenario = "Test_Arena"
+      self.scenario = "3v3"
+      self.textlist = []
       while self.running:
          if MODE != "Menu":
             return
          if self.menuplace == 1:
             self.bgcolor = (30,10,10)
             interfaces = self.init_menu1_interface()
-         if self.menuplace == 3:
+         elif self.menuplace == 3:
             interfaces = self.init_menu3_interface()
+         elif self.menuplace == 2:
+            interfaces = self.init_menu2_interface()
+         elif self.menuplace == 4:
+            interfaces = self.init_menu4_interface()
          if self.menuplace == 0:
             for event in pygame.event.get():
                if event.type == pygame.QUIT:
@@ -1414,6 +1605,8 @@ class menu_event_handler(event_handler):
          #Draw  Graphic Interfaces
          for i in interfaces:
             i.update(screen)
+         for t in self.textlist:
+            self.update_text_interface(t,screen)
 
          pygame.display.flip()
          fpsClock.tick(30)
@@ -1427,12 +1620,30 @@ class menu_event_handler(event_handler):
    # These functions create the menu items which are appropriate
    # based on which menu is currently active.
 
+   def update_text_interface(self,text,screen):
+      screen.blit(text[0],text[1])
+
    def init_menu1_interface(self):
       interfaces = {}
 
-      options_box = interface((500,400),"options()", interfaces, (150,75))
       logo_box = interface((200,50),"logo", interfaces, (300,150),False)
       playgame_box = interface((100,400), "playgame()", interfaces, (150,75))
+
+      self.menuplace = 0
+
+      return interfaces
+
+   def init_menu2_interface(self):
+      self.textlist = []
+      interfaces = {}
+
+      arenatype_box = interface((40,300),'arenatype', interfaces, (150,50), False)
+      boattype_box = interface((40,200),"boattype", interfaces, (150,50), False)
+      arenatype_change_box = interface((450,312),'arenachange()',interfaces,(64,32))
+      boattype_change_box = interface((450,212),'boattypechange()',interfaces,(64,32))
+      proceed_box = interface((400,450),'proceed()',interfaces,(150,75))
+      self.textlist.append([(self.font.render(str(self.boattype),1,(255,255,255))),(210,225)])
+      self.textlist.append([(self.font.render(str(self.scenario),1,(255,255,255))),(210,325)])
 
       self.menuplace = 0
 
@@ -1441,22 +1652,50 @@ class menu_event_handler(event_handler):
    def init_menu3_interface(self):
       interfaces = {}
 
-      boattype_box = interface((300,100), "boattype", interfaces, (300,150), False)
-      trireme_box = interface((100,200),"set_player_boat('trireme')", interfaces, (150,75))
-      bireme_box = interface((300,200),"set_player_boat('bireme')", interfaces, (150,75))
-      quadireme_box = interface((500,200), "set_player_boat('quadrireme')", interfaces, (175,75))
+      self.textlist = []
+
+      trireme_box = interface((200,200),"set_player_boat('trireme')", interfaces, (150,75))
+      bireme_box = interface((400,200),"set_player_boat('bireme')", interfaces, (150,75))
+      quadireme_box = interface((200,400), "set_player_boat('quadrireme')", interfaces, (150,75))
+      quinquereme_box = interface((400,400),"set_player_boat('quinquereme')",interfaces, (150,75))
+
+      self.menuplace = 0
+
+      return interfaces  
+
+   def init_menu4_interface(self):
+      interfaces = {}
+      self.textlist = []
+      
+      test_box = interface((200,200),"set_scenario('1v1')", interfaces, (150,75))
+      arena_box = interface((400,200),"set_scenario('3v3')", interfaces, (150,75))
+      arena2_box = interface((200,400), "set_scenario('2v6')", interfaces, (150,75))
+      tutorial_box = interface((400,400),"set_scenario('Tutorial')",interfaces, (150,75))
 
       self.menuplace = 0
 
       return interfaces
-      
+
    #These functions are all reactions to clicking menu items.
+
+   def arenachange(self):
+      self.menuplace = 4 
+
+   def boattypechange(self):
+      self.menuplace = 3
+
+   def set_scenario(self,scenario):
+      self.scenario = scenario
+      self.menuplace = 2
 
    def set_player_boat(self,boat):
       self.boattype = boat
-      self.menuplace = 1
+      self.menuplace = 2
 
    def playgame(self):
+      self.menuplace = 2
+
+   def proceed(self):
       global MODE
       MODE = "Naval"
       self.menuplace = 0
@@ -1486,6 +1725,7 @@ def main():
     # Initiate pygame and fps limiter clock
     pygame.init()
     pygame.font.init()
+    pygame.mixer.pre_init(frequency=44100)
     pygame.mixer.init()
 
     fpsClock = pygame.time.Clock()
